@@ -7,10 +7,9 @@ import remarkGfm from 'remark-gfm';
 import { siteConfig } from '@/config/site';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-// Helper to get agent name
-const getAgentName = (botId: string) => {
-    const agent = siteConfig.agents.find(a => a.id === botId);
-    return agent ? agent.name : botId;
+// Helper to get bot name
+const getAgentName = (_botId: string) => {
+    return siteConfig.bot.name;
 };
 
 export default function AdminDashboard() {
@@ -22,8 +21,6 @@ export default function AdminDashboard() {
     const [selectedJobTitle, setSelectedJobTitle] = useState<string>('');
     const [selectedDepartment, setSelectedDepartment] = useState<string>('');
     const [selectedCountry, setSelectedCountry] = useState<string>('');
-    const [selectedAgentFilter, setSelectedAgentFilter] = useState<string>('');
-    const [chartMode, setChartMode] = useState<'combined' | 'agent'>('combined');
 
     const [selectedUser, setSelectedUser] = useState<any | null>(null);
     const [sessions, setSessions] = useState<any[]>([]);
@@ -113,21 +110,15 @@ export default function AdminDashboard() {
         return Array.from(countries).filter(Boolean).sort();
     }, [users]);
 
-    const uniqueAgents = useMemo(() => {
-        return siteConfig.agents.map(a => ({ id: a.id, name: a.name }));
-    }, []);
-
     const filteredUsers = useMemo(() => {
         return users.filter(u => {
             if (selectedJobTitle && u.jobTitle !== selectedJobTitle) return false;
             if (selectedDepartment && u.department !== selectedDepartment) return false;
             if (selectedCountry && u.country !== selectedCountry) return false;
-            if (selectedAgentFilter && !u.agentCounts[selectedAgentFilter]) return false;
             return true;
         });
-    }, [users, selectedJobTitle, selectedDepartment, selectedCountry, selectedAgentFilter]);
+    }, [users, selectedJobTitle, selectedDepartment, selectedCountry]);
 
-    const chartColors = ['#e11d48', '#0284c7', '#d97706', '#7c3aed', '#10b981', '#f43f5e', '#3b82f6'];
     // -----------------------------------------------------------------
 
     // Level 3: Transcript View
@@ -361,20 +352,6 @@ export default function AdminDashboard() {
                         <h2 className="text-lg font-semibold text-slate-800">Usage Over Time</h2>
                         <p className="text-sm text-slate-500">Daily session volume across the platform.</p>
                     </div>
-                    <div className="flex bg-slate-100 p-1 rounded-lg">
-                        <button 
-                            onClick={() => setChartMode('combined')}
-                            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${chartMode === 'combined' ? 'bg-white shadow-sm text-[#307c4c]' : 'text-slate-600 hover:text-slate-900'}`}
-                        >
-                            Combined
-                        </button>
-                        <button 
-                            onClick={() => setChartMode('agent')}
-                            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${chartMode === 'agent' ? 'bg-white shadow-sm text-[#307c4c]' : 'text-slate-600 hover:text-slate-900'}`}
-                        >
-                            By Agent
-                        </button>
-                    </div>
                 </div>
                 
                 <div className="h-[300px] w-full">
@@ -389,22 +366,7 @@ export default function AdminDashboard() {
                                     cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '5 5' }}
                                 />
                                 <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                                {chartMode === 'combined' ? (
-                                    <Line type="monotone" dataKey="totalSessions" name="Total Sessions" stroke="#307c4c" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
-                                ) : (
-                                    uniqueAgents.map((agent, idx) => (
-                                        <Line 
-                                            key={agent.id} 
-                                            type="monotone" 
-                                            dataKey={(d) => d.agents[agent.id] || 0} 
-                                            name={agent.name} 
-                                            stroke={idx === 0 ? '#307c4c' : chartColors[idx % chartColors.length]} 
-                                            strokeWidth={2} 
-                                            dot={{r: 3}} 
-                                            activeDot={{r: 5}} 
-                                        />
-                                    ))
-                                )}
+                                <Line type="monotone" dataKey="totalSessions" name="Total Sessions" stroke="#307c4c" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
                             </LineChart>
                         </ResponsiveContainer>
                     ) : (
@@ -456,16 +418,6 @@ export default function AdminDashboard() {
                                 <option key={country} value={country}>{country}</option>
                             ))}
                         </select>
-                        <select 
-                            value={selectedAgentFilter}
-                            onChange={(e) => setSelectedAgentFilter(e.target.value)}
-                            className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-[#307c4c] focus:border-[#307c4c] block w-full p-2.5"
-                        >
-                            <option value="">All Agents</option>
-                            {uniqueAgents.map((agent: any) => (
-                                <option key={agent.id} value={agent.id}>{agent.name}</option>
-                            ))}
-                        </select>
                     </div>
                 </div>
                 
@@ -487,7 +439,6 @@ export default function AdminDashboard() {
                                     <th className="p-4 font-medium hidden sm:table-cell text-center">Deleted</th>
                                     <th className="p-4 font-medium hidden sm:table-cell">Messages</th>
                                     <th className="p-4 font-medium hidden lg:table-cell">Avg Msg/Session</th>
-                                    <th className="p-4 font-medium hidden xl:table-cell">Unique Agents</th>
                                     <th className="p-4 font-medium hidden md:table-cell">Last Active</th>
                                     <th className="p-4 w-10"></th>
                                 </tr>
@@ -558,9 +509,6 @@ export default function AdminDashboard() {
                                             </td>
                                             <td className={`p-4 text-sm hidden lg:table-cell ${hasMessages ? 'text-slate-600' : 'text-slate-400'}`}>
                                                 {user.averageMessagesPerSession}
-                                            </td>
-                                            <td className={`p-4 text-sm hidden xl:table-cell ${hasMessages ? 'text-slate-600' : 'text-slate-400'}`}>
-                                                {user.uniqueAgentsUsed}
                                             </td>
                                             <td className={`p-4 text-sm hidden md:table-cell ${hasMessages ? 'text-slate-500' : 'text-slate-300'}`}>
                                                 {user.lastActiveDateString}

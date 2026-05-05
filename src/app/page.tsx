@@ -7,9 +7,9 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { siteConfig, type AgentId } from '@/config/site';
+import { siteConfig } from '@/config/site';
 
-const { agents, suggestions, colors, images, text } = siteConfig;
+const { bot, suggestions, colors, images, text } = siteConfig;
 
 interface Message {
   id: number;
@@ -160,7 +160,6 @@ export default function Home() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const [activeAgentId, setActiveAgentId] = useState<AgentId>('material');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -170,7 +169,6 @@ export default function Home() {
 
   // Start with empty messages to show the Welcome View
   const [messages, setMessages] = useState<Message[]>([]);
-
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -182,9 +180,6 @@ export default function Home() {
       el.style.height = `${el.scrollHeight}px`;
     }
   };
-
-  const activeAgent = agents.find(a => a.id === activeAgentId) || agents[0];
-  const activeAgentName = activeAgent.name;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -213,7 +208,7 @@ export default function Home() {
     }
   };
 
-  const loadSessionHistory = async (sessionId: string, botId: string) => {
+  const loadSessionHistory = async (sessionId: string) => {
     try {
       setIsLoading(true);
       const res = await fetch(`/api/chat/history?sessionId=${sessionId}`);
@@ -226,7 +221,6 @@ export default function Home() {
                  content: m.content
              })));
              setActiveSessionId(sessionId);
-             setActiveAgentId(botId as AgentId);
              setIsSidebarOpen(false);
          }
       }
@@ -247,11 +241,10 @@ export default function Home() {
   // Don't render anything while the session is being checked or if redirecting
   if (status === 'loading' || status === 'unauthenticated') return null;
 
-  const handleAgentChange = (id: AgentId) => {
-    setActiveAgentId(id);
+  const handleNewChat = () => {
     setActiveSessionId(null);
-    setMessages([]); // Clear chat effectively starts new session
-    setIsSidebarOpen(false); // Close sidebar on mobile after selecting agent
+    setMessages([]);
+    setIsSidebarOpen(false);
   };
 
   const handleDeleteSession = async (sessionId: string) => {
@@ -295,7 +288,7 @@ export default function Home() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             sessionId: currentSessionId,
-            botId: activeAgentId,
+            botId: bot.id,
             role: 'user',
             content: messageText
           })
@@ -319,9 +312,9 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          webhookUrl: activeAgent.webhookUrl,
+          webhookUrl: bot.webhookUrl,
           message: messageText,
-          agent: activeAgent.name,
+          agent: bot.name,
           sessionId: currentSessionId || crypto.randomUUID(),
         }),
       });
@@ -377,7 +370,7 @@ export default function Home() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             sessionId: currentSessionId,
-            botId: activeAgentId,
+            botId: bot.id,
             role: 'assistant',
             content: aiContent
           })
@@ -416,15 +409,13 @@ export default function Home() {
     if (textareaRef.current) {
       textareaRef.current.focus();
 
-      // We need a slight delay for autoResize to calculate the correct scrollHeight 
+      // We need a slight delay for autoResize to calculate the correct scrollHeight
       // based on the newly inserted text
       setTimeout(() => {
         autoResize();
       }, 0);
     }
   };
-
-
 
   return (
     <div className="flex h-[100dvh] w-full bg-white overflow-hidden font-sans text-slate-900">
@@ -437,8 +428,8 @@ export default function Home() {
         />
       )}
 
-      {/* 
-        SIDEBAR 
+      {/*
+        SIDEBAR
         Width: 280px (fixed)
       */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-[280px] bg-gray-50 border-r border-gray-100 flex-shrink-0 flex flex-col h-full transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
@@ -458,59 +449,30 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Agent List */}
-        <div className="flex-none max-h-[40%] overflow-y-auto px-4 pt-6 pb-2 space-y-1">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-2">
-            {text.agentsLabel}
-          </div>
-
-          {agents.map((agent) => {
-            const isActive = activeAgentId === agent.id && activeSessionId === null;
-            return (
-              <button
-                key={agent.id}
-                onClick={() => handleAgentChange(agent.id as AgentId)}
-                className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all text-sm font-medium relative group ${isActive
-                  ? 'bg-nesr-green/10 text-gray-900 shadow-sm ring-1 ring-black/5'
-                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
-              >
-                {/* Active Indicator Border */}
-                {isActive && (
-                  <div className="absolute left-0 top-1 bottom-1 w-1 bg-nesr-green rounded-r-md" />
-                )}
-
-                {/* Icon */}
-                <agent.icon
-                  size={20}
-                  className={`transition-colors ${isActive ? 'text-nesr-green' : 'text-gray-400 group-hover:text-gray-600'
-                    }`}
-                />
-
-                {/* Name */}
-                <div className="flex flex-col items-start text-left">
-                  <span className={isActive ? 'font-semibold text-nesr-green' : ''}>
-                    {agent.name}
-                  </span>
-                  {isActive && <span className="text-[10px] text-gray-500 font-normal opacity-80 leading-tight">{agent.description}</span>}
-                </div>
-              </button>
-            );
-          })}
+        {/* New Chat Button */}
+        <div className="px-4 pb-2">
+          <button
+            onClick={handleNewChat}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-white transition-all duration-150"
+            style={{ backgroundColor: colors.brandPrimary }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.brandPrimaryHover)}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = colors.brandPrimary)}
+          >
+            {text.newChatButton}
+          </button>
         </div>
-        
+
         {/* Chat History List */}
         <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-1 mt-4 border-t border-gray-100 pt-4">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-2">
             Chat History
           </div>
           {sessions.map(session => {
-              const sessionAgent = agents.find(a => a.id === session.botId);
               const isActive = activeSessionId === session.id;
               return (
                   <div
                      key={session.id}
-                     onClick={() => loadSessionHistory(session.id, session.botId)}
+                     onClick={() => loadSessionHistory(session.id)}
                      className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all text-sm font-medium relative group cursor-pointer ${isActive ? 'bg-nesr-green/10 text-gray-900 shadow-sm ring-1 ring-black/5' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}
                   >
                       {isActive && (
@@ -518,7 +480,6 @@ export default function Home() {
                       )}
                       <div className="flex flex-col items-start min-w-0 text-left flex-1 overflow-hidden">
                            <span className={`truncate w-full ${isActive ? 'font-semibold text-nesr-green' : ''}`}>{session.title}</span>
-                           <span className="text-[10px] text-gray-400 uppercase tracking-wider truncate w-full">{sessionAgent?.name || 'Bot'}</span>
                       </div>
                       <button
                         onClick={(e) => {
@@ -577,8 +538,8 @@ export default function Home() {
         </div>
       </aside>
 
-      {/* 
-        MAIN CHAT AREA 
+      {/*
+        MAIN CHAT AREA
       */}
       <main className="flex-1 flex flex-col h-full relative bg-white">
 
@@ -595,9 +556,9 @@ export default function Home() {
 
             <span className="text-gray-400 text-sm hidden sm:inline">{text.chattingWith}</span>
             <div className="flex items-center gap-2 bg-nesr-green/5 px-3 py-1 rounded-full border border-nesr-green/10">
-              <activeAgent.icon size={14} className="text-nesr-green" />
+              <bot.icon size={14} className="text-nesr-green" />
               <span className="text-nesr-green font-semibold text-sm">
-                {activeAgentName}
+                {bot.name}
               </span>
             </div>
           </div>
@@ -626,16 +587,16 @@ export default function Home() {
               </div>
 
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-gray-900 mb-2 tracking-tight text-center w-full max-w-full break-words whitespace-normal">
-                {text.welcomeGreeting(activeAgentName)}
+                {text.welcomeGreeting(bot.name)}
               </h2>
               <p className="text-base md:text-lg text-gray-400 font-medium mb-10 text-center w-full max-w-full break-words whitespace-normal leading-relaxed px-2">
-                {activeAgent.description}. <br className="hidden sm:block" />
-                <span className="text-sm md:text-base opacity-80">{activeAgent.tagline}</span>
+                {bot.description}. <br className="hidden sm:block" />
+                <span className="text-sm md:text-base opacity-80">{bot.tagline}</span>
               </p>
 
               {/* Suggestion Chips */}
               <div className="flex flex-col md:flex-row md:flex-wrap items-center justify-center gap-3 w-full">
-                {(suggestions as Record<string, readonly string[]>)[activeAgentId]?.map((suggestion, idx) => (
+                {suggestions.map((suggestion, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleSuggestionClick(suggestion)}
@@ -657,7 +618,7 @@ export default function Home() {
                   <div className="flex flex-col gap-1 max-w-[85%] lg:max-w-[90%]">
                     {/* Name label for clarity */}
                     <span className={`text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-1 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
-                      {msg.role === 'user' ? text.youLabel : activeAgentName}
+                      {msg.role === 'user' ? text.youLabel : bot.name}
                     </span>
 
                     {msg.role === 'user' ? (
@@ -723,7 +684,6 @@ export default function Home() {
           <div className="max-w-[700px] lg:max-w-5xl mx-auto pointer-events-auto mt-4">
             <div className="relative shadow-[0_8px_40px_rgb(0,0,0,0.08)] hover:shadow-[0_8px_40px_rgb(0,0,0,0.12)] transition-shadow duration-300 rounded-2xl bg-white/90 backdrop-blur-xl ring-1 ring-gray-200 group focus-within:ring-2 focus-within:ring-nesr-green/20">
 
-
               <textarea
                 ref={textareaRef}
                 value={inputValue}
@@ -737,7 +697,7 @@ export default function Home() {
                     handleSendMessage();
                   }
                 }}
-                placeholder={text.inputPlaceholder(activeAgentName)}
+                placeholder={text.inputPlaceholder(bot.name)}
                 className="w-full min-h-[52px] max-h-40 py-3.5 px-5 pr-14 bg-transparent border-none focus:ring-0 focus:outline-none placeholder-gray-400 text-gray-700 font-medium resize-none overflow-y-auto"
                 rows={1}
               />
@@ -756,7 +716,7 @@ export default function Home() {
             </div>
 
             <p className="text-center text-[10px] text-gray-400 mt-3 font-medium tracking-wide">
-              {text.disclaimer(activeAgent.disclaimer)}
+              {text.disclaimer(bot.disclaimer)}
             </p>
           </div>
         </div>

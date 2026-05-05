@@ -1,4 +1,4 @@
-import { Package, Truck, Search, type LucideIcon } from 'lucide-react';
+import { ShieldCheck, type LucideIcon } from 'lucide-react';
 
 /* ─────────────────────────────────────────────
    SINGLE SOURCE OF TRUTH
@@ -6,7 +6,7 @@ import { Package, Truck, Search, type LucideIcon } from 'lucide-react';
    Never hardcode these values in components.
    ───────────────────────────────────────────── */
 
-export interface AgentConfig {
+export interface BotConfig {
     id: string;
     name: string;
     icon: LucideIcon;
@@ -46,13 +46,12 @@ export const siteConfig = {
 
     /* ── Text Strings ── */
     text: {
-        appName: 'Supply Chain AI',
-        appDescription: 'Intelligent Supply Chain Assistant',
+        appName: 'HSE AI',
+        appDescription: 'Intelligent HSE Assistant',
 
         // Sidebar
-        sidebarTitle: 'Supply Chain AI',
+        sidebarTitle: 'HSE AI',
         newChatButton: 'New Chat',
-        agentsLabel: 'SUPPLY CHAIN AGENTS',
         signOutButton: 'Sign Out',
 
         // Chat
@@ -60,19 +59,19 @@ export const siteConfig = {
         youLabel: 'You',
         defaultUserName: 'NESR User',
         defaultJobTitle: 'NESR Employee',
-        inputPlaceholder: (agentName: string) => `Message ${agentName}...`,
-        disclaimer: (agentDisclaimer: string) =>
-            `Supply Chain AI Internal Tool • ${agentDisclaimer}`,
-        welcomeGreeting: (agentName: string) => `Hello, I am ${agentName}.`,
+        inputPlaceholder: (botName: string) => `Message ${botName}...`,
+        disclaimer: (botDisclaimer: string) =>
+            `HSE AI Internal Tool • ${botDisclaimer}`,
+        welcomeGreeting: (botName: string) => `Hello, I am ${botName}.`,
         errorMessage:
-            'Detailed error: Unable to connect to the agent. Please try again later.',
+            'Detailed error: Unable to connect to the chatbot. Please try again later.',
         genericError:
             'Chatbot is not available due to high demand right now. Please try again later.',
 
         // Login page
         login: {
-            title: 'Welcome to Supply Chain AI',
-            subtitle: 'Intelligent Supply Chain Assistant',
+            title: 'Welcome to HSE AI',
+            subtitle: 'Intelligent HSE Assistant',
             ssoButton: 'Continue with SSO',
             divider: 'or',
             passwordPlaceholder: 'Enter password',
@@ -80,59 +79,25 @@ export const siteConfig = {
             loadingText: 'Signing in…',
             errorText: 'Incorrect password. Please try again.',
             footer: 'NESR Internal Tool • Authorized Personnel Only',
-            pageTitle: 'Sign In — Supply Chain AI',
+            pageTitle: 'Sign In — HSE AI',
         },
     },
 
     /* ── Suggestions ── */
-    suggestions: {
-        material: [
-            'Check VDC stock for material ID: ',
-            'Is there a duplicate part for: ',
-            'Can I create a new material for: ',
-        ],
-        logistics: [
-            'What is the SC policy for: ',
-            'Summarize the policy on: ',
-            'Who is responsible for the policy on: ',
-        ],
-        sourceguide: [
-            'Which Supplier to use for Laptops in HQ Dubai?',
-            'Who supplies Medical Insurance in Egypt?',
-            'Check vendor details for Barite in UAE',
-        ],
-    },
+    suggestions: [
+        'What are the HSE requirements for: ',
+        'What is the safety policy for: ',
+        'How do I report an incident for: ',
+    ],
 
-    /* ── Agents ── */
-    agents: [
-        {
-            id: 'material',
-            name: 'Material AI',
-            icon: Package,
-            description: 'Inventory & Materials Expert',
-            tagline: 'How can I help you manage materials and inventory today?',
-            disclaimer: 'Always verify stock levels before procurement',
-            webhookUrl: process.env.NEXT_PUBLIC_MATERIAL_WEBHOOK || '',
-        },
-        {
-            id: 'logistics',
-            name: 'SC Policy AI',
-            icon: Truck,
-            description: 'Supply Chain Policy Expert',
-            tagline: 'How can I help you navigate Supply Chain policies today?',
-            disclaimer: 'Always verify policy details with the relevant authority',
-            webhookUrl: process.env.NEXT_PUBLIC_LOGISTICS_WEBHOOK || '',
-        },
-        {
-            id: 'sourceguide',
-            name: 'SourceGuide AI',
-            icon: Search,
-            description: 'Procurement & Vendor Expert',
-            tagline: 'I can help you find approved suppliers and check vendor details.',
-            disclaimer: 'Always confirm vendor status with procurement',
-            webhookUrl: process.env.NEXT_PUBLIC_SOURCEGUIDE_WEBHOOK || '',
-        },
-    ] satisfies AgentConfig[],
+    /* ── Bot ── */
+    bot: {
+        id: 'hse',
+        name: 'HSE AI',
+        icon: ShieldCheck,
+        description: 'Health, Safety & Environment Expert',
+        tagline: 'How can I help you with HSE policies and safety today?',
+        disclaimer: 'Always verify safety information with the relevant HSE authority',
+        webhookUrl: process.env.NEXT_PUBLIC_HSE_WEBHOOK || '',
+    } satisfies BotConfig,
 } as const;
-
-export type AgentId = (typeof siteConfig.agents)[number]['id'];

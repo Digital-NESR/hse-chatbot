@@ -1,13 +1,13 @@
-# Supply Chain AI - Technical Documentation & System Context
+# HSE AI - Technical Documentation & System Context
 
-This document is the **Ultimate Source of Truth** for the Supply Chain AI project. 
+This document is the **Ultimate Source of Truth** for the HSE AI project. 
 It is specifically designed to provide **comprehensive system context for AI Coding Assistants**, new developers, and architects. It details the exact stack, relational database architecture, business logic, and API contracts used throughout the platform.
 
 ---
 
 ## 1. Project Overview & AI Context
 
-**Core Purpose:** Supply Chain AI is an enterprise-grade AI assistant platform built for NESR. It acts as a specialized conversational interface to disparate internal datasets (like Power BI, Logistics Policies, and Material Stock). 
+**Core Purpose:** HSE AI is an enterprise-grade AI assistant platform built for NESR. It acts as a specialized conversational interface to disparate internal datasets (like Power BI, Logistics Policies, and Material Stock). 
 Unlike generic LLMs, it restricts standard prompting by routing user queries into dedicated, highly tuned **AI Agents** (e.g., Material AI, SC Policy AI, SourceGuide AI).
 
 **AI Context:** 
@@ -105,7 +105,7 @@ The framework dictates that bots are rigidly separated by domain logic (`src/con
 
 ### Current Agents:
 1. **Material AI (`material`)**: Focuses on inventory, VDC stock, duplicate parts, and material tracking.
-2. **SC Policy AI (`logistics`)**: A highly sophisticated Vector Retrieval system querying unstructured PDF documentation regarding exact internal supply chain operational policies.
+2. **SC Policy AI (`logistics`)**: A highly sophisticated Vector Retrieval system querying unstructured PDF documentation regarding exact internal HSE operational policies.
 3. **SourceGuide AI (`sourceguide`)**: Built to bridge vendor procurement queries. Uses highly specific n8n logic and heavy DAX logic to query standard internal PowerBI dashboards.
 
 ### Logic Frameworks (n8n Webhook Side)
@@ -118,7 +118,7 @@ While not directly in the `.ts` codebase, any UI parsing assumes n8n operates wi
 ## 6. State Management & Component Structure
 
 ### Chat Interface
-- **State Control**: Utilizes deeply nested local React components holding `messages[]`, `loadingState (boolean)`, and dynamic `AgentIds`. 
+- **State Control**: Utilizes deeply nested local React components holding `messages[]`, `loadingState (boolean)`, and dynamic session IDs. 
 - **Tool UI**: Interactions map directly via `role: user/assistant`. 
 
 ### Admin Analytics Command Center
@@ -189,4 +189,4 @@ NEXT_PUBLIC_SOURCEGUIDE_WEBHOOK="https://.../webhook/sourceguide"
 ---
 
 
-*(End of Technical Specifications for Supply Chain AI)*
+*(End of Technical Specifications for HSE AI)*
