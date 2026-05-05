@@ -1,7 +1,8 @@
 'use client';
 
-
+import { useState } from 'react';
 import { signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { siteConfig } from '@/config/site';
 
@@ -9,9 +10,34 @@ const { colors, images, text } = siteConfig;
 const login = text.login;
 
 export default function LoginPage() {
+    const router = useRouter();
+    const [password, setPassword] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
 
     const handleSSOLogin = () => {
         signIn('azure-ad', { callbackUrl: '/' });
+    };
+
+    const handlePasswordLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!password.trim()) return;
+
+        setIsLoading(true);
+        setError('');
+
+        const result = await signIn('credentials', {
+            password,
+            redirect: false,
+            callbackUrl: '/',
+        });
+
+        if (result?.ok) {
+            router.replace('/');
+        } else {
+            setError(login.errorText);
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -71,7 +97,37 @@ export default function LoginPage() {
                         {login.ssoButton}
                     </button>
 
+                    {/* Divider */}
+                    <div className="w-full flex items-center gap-3">
+                        <div className="flex-1 h-px bg-white/10" />
+                        <span className="text-xs text-slate-500 uppercase tracking-widest">{login.divider}</span>
+                        <div className="flex-1 h-px bg-white/10" />
+                    </div>
 
+                    {/* Password Form */}
+                    <form onSubmit={handlePasswordLogin} className="w-full flex flex-col gap-3">
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                            placeholder={login.passwordPlaceholder}
+                            autoComplete="current-password"
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:border-transparent transition-all"
+                            style={{ '--tw-ring-color': colors.brandPrimary } as React.CSSProperties}
+                        />
+
+                        {error && (
+                            <p className="text-red-400 text-xs text-center">{error}</p>
+                        )}
+
+                        <button
+                            type="submit"
+                            disabled={!password.trim() || isLoading}
+                            className="w-full min-h-[48px] flex items-center justify-center text-sm font-semibold py-3 px-5 rounded-xl border border-white/10 text-white transition-all duration-200 hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            {isLoading ? login.loadingText : login.loginButton}
+                        </button>
+                    </form>
 
                     {/* Footer */}
                     <p className="text-slate-500 text-xs text-center">

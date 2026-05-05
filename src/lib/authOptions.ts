@@ -1,6 +1,6 @@
 import NextAuth from 'next-auth';
 import AzureADProvider from 'next-auth/providers/azure-ad';
-
+import CredentialsProvider from 'next-auth/providers/credentials';
 
 import type { NextAuthOptions } from 'next-auth';
 import { prisma } from '@/lib/prisma';
@@ -12,7 +12,19 @@ export const authOptions: NextAuthOptions = {
             clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
             tenantId: process.env.AZURE_AD_TENANT_ID!,
         }),
-
+        CredentialsProvider({
+            name: 'Password',
+            credentials: {
+                password: { label: 'Password', type: 'password' },
+            },
+            async authorize(credentials) {
+                const appPassword = process.env.APP_PASSWORD ?? 'NESR2026';
+                if (credentials?.password === appPassword) {
+                    return { id: 'nesr-bypass', name: 'NESR User', email: 'user@nesr.com' };
+                }
+                return null;
+            },
+        }),
     ],
     pages: {
         signIn: '/login',
@@ -22,6 +34,16 @@ export const authOptions: NextAuthOptions = {
     },
     callbacks: {
         async jwt({ token, account, user }: any) {
+
+            // Credentials (password) login — set defaults and skip Graph API
+            if (account?.provider === 'credentials') {
+                token.jobTitle = 'NESR Employee';
+                token.displayName = 'NESR User';
+                token.department = 'General';
+                token.country = 'KSA';
+                token.employeeId = '';
+                return token;
+            }
 
             // This block only runs on the initial sign-in when the access token is fresh
             if (account?.access_token) {
