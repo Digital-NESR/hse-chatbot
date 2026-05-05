@@ -71,32 +71,33 @@ export const authOptions: NextAuthOptions = {
                     if (!token.employeeId) token.employeeId = "";
                 }
 
-                // 3. Upsert User into normalized DB 
-                try {
-                    const userEmail = user?.email || token?.email;
-                    if (userEmail) {
-                        await prisma.user.upsert({
-                            where: { email: userEmail },
-                            update: {
-                                displayName: token.displayName as string,
-                                jobTitle: token.jobTitle as string,
-                                department: token.department as string,
-                                country: token.country as string,
-                                employeeId: token.employeeId as string,
-                            },
-                            create: {
-                                email: userEmail,
-                                displayName: token.displayName as string,
-                                jobTitle: token.jobTitle as string,
-                                department: token.department as string,
-                                country: token.country as string,
-                                employeeId: token.employeeId as string,
-                            }
-                        });
-                    }
-                } catch (error) {
-                    console.error("Failed to upsert user to database", error);
-                }
+                // 3. Upsert User into normalized DB
+                // TODO: Re-enable once a database is connected.
+                // try {
+                //     const userEmail = user?.email || token?.email;
+                //     if (userEmail) {
+                //         await prisma.user.upsert({
+                //             where: { email: userEmail },
+                //             update: {
+                //                 displayName: token.displayName as string,
+                //                 jobTitle: token.jobTitle as string,
+                //                 department: token.department as string,
+                //                 country: token.country as string,
+                //                 employeeId: token.employeeId as string,
+                //             },
+                //             create: {
+                //                 email: userEmail,
+                //                 displayName: token.displayName as string,
+                //                 jobTitle: token.jobTitle as string,
+                //                 department: token.department as string,
+                //                 country: token.country as string,
+                //                 employeeId: token.employeeId as string,
+                //             }
+                //         });
+                //     }
+                // } catch (error) {
+                //     console.error("Failed to upsert user to database", error);
+                // }
             }
 
             return token;
