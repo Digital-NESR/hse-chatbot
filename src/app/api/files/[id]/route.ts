@@ -58,7 +58,7 @@ export async function GET(
     : `attachment; filename="${safeName}"`;
 
   // pg returns BYTEA as a Node.js Buffer (subclass of Uint8Array) — pass directly.
-  return new Response(file_data, {
+  return new Response(new Uint8Array(file_data), {
     status: 200,
     headers: {
       'Content-Type': contentType,
