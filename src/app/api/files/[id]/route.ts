@@ -20,9 +20,9 @@ const INLINE_TYPES = new Set(['pdf']);
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const { id } = params;
+  const { id } = await params;
 
   if (!UUID_RE.test(id)) {
     return NextResponse.json({ error: 'Invalid document ID.' }, { status: 400 });
