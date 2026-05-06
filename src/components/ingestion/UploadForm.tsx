@@ -96,6 +96,7 @@ export default function UploadForm() {
 
     // ── Step 1: Store file in PostgreSQL ─────────────────────────────────────
     let documentId: string;
+    let sourceLink: string;
     try {
       const step1 = new FormData();
       step1.append('file', file!);
@@ -109,6 +110,7 @@ export default function UploadForm() {
       }
       const data = await res.json();
       documentId = data.id;
+      sourceLink = data.source_link;
     } catch (err: any) {
       setStatus('error');
       setErrorMessage(err.message || 'Failed to store file. Please try again.');
@@ -125,8 +127,6 @@ export default function UploadForm() {
     }
 
     try {
-      const sourceLink = `${window.location.origin}/api/files/${documentId}`;
-
       const step2 = new FormData();
       step2.append('file', file!);
       step2.append('source_name', sourceName.trim());
