@@ -33,7 +33,7 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-type Status = 'idle' | 'uploading' | 'success' | 'error';
+type Status = 'idle' | 'uploading' | 'success' | 'error' | 'warn';
 
 export default function UploadForm() {
   const [sourceName, setSourceName] = useState('');
@@ -78,44 +78,75 @@ export default function UploadForm() {
   const isExcel = fileExt === 'xlsx' || fileExt === 'xls';
   const isFormValid = !!sourceName.trim() && !!country && !!file && !fileError;
 
+  const resetForm = () => {
+    setSourceName('');
+    setCountry('');
+    setFile(null);
+    setFileError('');
+    setStatus('idle');
+    setErrorMessage('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid || status === 'uploading') return;
 
-    const webhookUrl = process.env.NEXT_PUBLIC_INGESTION_WEBHOOK_URL;
-    if (!webhookUrl) {
-      setStatus('error');
-      setErrorMessage('Ingestion webhook URL is not configured (NEXT_PUBLIC_INGESTION_WEBHOOK_URL).');
-      return;
-    }
-
     setStatus('uploading');
     setErrorMessage('');
 
-    const formData = new FormData();
-    formData.append('file', file!);
-    formData.append('source_name', sourceName.trim());
-    formData.append('country', country);
-
+    // ── Step 1: Store file in PostgreSQL ─────────────────────────────────────
+    let documentId: string;
     try {
-      const res = await fetch(webhookUrl, { method: 'POST', body: formData });
+      const step1 = new FormData();
+      step1.append('file', file!);
+      step1.append('source_name', sourceName.trim());
+      step1.append('country', country);
+
+      const res = await fetch('/api/upload', { method: 'POST', body: step1 });
       if (!res.ok) {
         const errText = await res.text().catch(() => `Server error ${res.status}`);
         throw new Error(errText || `Server returned ${res.status}`);
       }
-
-      setStatus('success');
-      setTimeout(() => {
-        setSourceName('');
-        setCountry('');
-        setFile(null);
-        setFileError('');
-        setStatus('idle');
-      }, 2000);
+      const data = await res.json();
+      documentId = data.id;
     } catch (err: any) {
       setStatus('error');
-      setErrorMessage(err.message || 'Upload failed. Please try again.');
+      setErrorMessage(err.message || 'Failed to store file. Please try again.');
+      return;
     }
+
+    // ── Step 2: Ingest into Pinecone via n8n ─────────────────────────────────
+    const webhookUrl = process.env.NEXT_PUBLIC_INGESTION_WEBHOOK_URL;
+    if (!webhookUrl) {
+      // File is stored — warn rather than hard-fail.
+      setStatus('warn');
+      setErrorMessage('File stored but embedding failed. Please retry ingestion.');
+      return;
+    }
+
+    try {
+      const sourceLink = `${window.location.origin}/api/files/${documentId}`;
+
+      const step2 = new FormData();
+      step2.append('file', file!);
+      step2.append('source_name', sourceName.trim());
+      step2.append('country', country);
+      step2.append('source_link', sourceLink);
+
+      const res = await fetch(webhookUrl, { method: 'POST', body: step2 });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => `Server error ${res.status}`);
+        throw new Error(errText || `Server returned ${res.status}`);
+      }
+    } catch {
+      setStatus('warn');
+      setErrorMessage('File stored but embedding failed. Please retry ingestion.');
+      return;
+    }
+
+    // ── Both steps succeeded ──────────────────────────────────────────────────
+    setStatus('success');
+    setTimeout(resetForm, 2000);
   };
 
   return (
@@ -133,6 +164,20 @@ export default function UploadForm() {
         <div className="mb-5 flex items-center gap-2.5 px-4 py-3 bg-[#307c4c]/10 border border-[#307c4c]/20 rounded-xl text-[#307c4c] text-sm font-medium animate-in fade-in duration-300">
           <span>✓</span>
           Document successfully ingested
+        </div>
+      )}
+
+      {/* Warning Banner — file stored but embedding failed */}
+      {status === 'warn' && (
+        <div className="mb-5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl animate-in fade-in duration-300">
+          <p className="text-sm font-medium text-amber-700 mb-0.5">Partial success</p>
+          <p className="text-xs text-amber-600">{errorMessage}</p>
+          <button
+            onClick={resetForm}
+            className="mt-2 text-xs font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
@@ -290,7 +335,7 @@ export default function UploadForm() {
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 />
               </svg>
-              Uploading & ingesting...
+              Storing & ingesting...
             </>
           ) : (
             <>
