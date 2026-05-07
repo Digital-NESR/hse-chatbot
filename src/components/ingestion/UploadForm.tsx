@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import { Upload, X } from 'lucide-react';
 
 const COUNTRIES = [
@@ -60,19 +60,19 @@ export default function UploadForm() {
     setFile(f);
   };
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const dropped = e.dataTransfer.files[0];
     if (dropped) validateAndSetFile(dropped);
-  }, []);
+  };
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
-  }, []);
+  };
 
-  const handleDragLeave = useCallback(() => setIsDragging(false), []);
+  const handleDragLeave = () => setIsDragging(false);
 
   const fileExt = file ? getFileExtension(file.name) : '';
   const isExcel = fileExt === 'xlsx' || fileExt === 'xls';
@@ -95,8 +95,8 @@ export default function UploadForm() {
     setErrorMessage('');
 
     // ── Step 1: Store file in PostgreSQL ─────────────────────────────────────
-    let documentId: string;
-    let sourceLink: string;
+    let documentId = '';
+    let sourceLink = '';
     try {
       const step1 = new FormData();
       step1.append('file', file!);
@@ -187,7 +187,7 @@ export default function UploadForm() {
           <p className="text-sm font-medium text-red-600 mb-0.5">Upload failed</p>
           <p className="text-xs text-red-500">{errorMessage}</p>
           <button
-            onClick={() => setStatus('idle')}
+            onClick={resetForm}
             className="mt-2 text-xs font-semibold text-red-600 hover:text-red-800 underline underline-offset-2"
           >
             Dismiss & retry
