@@ -2,10 +2,10 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 
-const DB_VAR_NAMES = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'] as const;
+const DB_VAR_NAMES = ['POSTGRES_HOST', 'POSTGRES_PORT', 'POSTGRES_DB', 'POSTGRES_USER', 'POSTGRES_PASSWORD'] as const;
 
 function buildConnectionString(): string {
-  const { DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD } = process.env;
+  const { POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD } = process.env;
 
   // Build-time safety net: if none of the individual DB vars are present (e.g. Vercel
   // static analysis), return a dummy URL so the build doesn't crash.
@@ -18,7 +18,7 @@ function buildConnectionString(): string {
     throw new Error(`Missing required database environment variables: ${missing.join(', ')}`);
   }
 
-  return `postgresql://${DB_USER}:${encodeURIComponent(DB_PASSWORD!)}@${DB_HOST}:${DB_PORT}/${DB_NAME}?uselibpqcompat=true&sslmode=require`;
+  return `postgresql://${POSTGRES_USER}:${encodeURIComponent(POSTGRES_PASSWORD!)}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?uselibpqcompat=true&sslmode=require`;
 }
 
 const prismaClientSingleton = () => {
