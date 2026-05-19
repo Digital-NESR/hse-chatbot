@@ -9,11 +9,11 @@ export const metadata: Metadata = {
 export default function AdminIngestionPage() {
     return (
         <div className="max-w-[1400px] mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 xl:gap-8 items-start">
-                {/* Left — Upload Form */}
+            <div className="flex flex-col gap-6">
+                {/* Top — Upload Form */}
                 <UploadForm />
 
-                {/* Right — Document Library */}
+                {/* Bottom — Document Library */}
                 <DocumentLibrary />
             </div>
         </div>
