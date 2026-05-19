@@ -2,7 +2,7 @@ import UploadForm from '@/components/ingestion/UploadForm';
 import DocumentLibrary from '@/components/ingestion/DocumentLibrary';
 
 export const metadata = {
-  title: 'Data Ingestion | HSE AI',
+  title: 'Data Ingestion | HSE Virtual Support Agent',
 };
 
 export default function IngestionPage() {

@@ -1,13 +1,13 @@
-# HSE AI - Technical Documentation & System Context
+# HSE Virtual Support Agent - Technical Documentation & System Context
 
-This document is the **Ultimate Source of Truth** for the HSE AI project. 
+This document is the **Ultimate Source of Truth** for the HSE Virtual Support Agent project. 
 It is specifically designed to provide **comprehensive system context for AI Coding Assistants**, new developers, and architects. It details the exact stack, relational database architecture, business logic, and API contracts used throughout the platform.
 
 ---
 
 ## 1. Project Overview & AI Context
 
-**Core Purpose:** HSE AI is an enterprise-grade AI assistant platform built for NESR. It acts as a specialized conversational interface to disparate internal datasets (like Power BI, Logistics Policies, and Material Stock). 
+**Core Purpose:** HSE Virtual Support Agent is an enterprise-grade AI assistant platform built for NESR. It acts as a specialized conversational interface to disparate internal datasets (like Power BI, Logistics Policies, and Material Stock). 
 Unlike generic LLMs, it restricts standard prompting by routing user queries into dedicated, highly tuned **AI Agents** (e.g., Material AI, SC Policy AI, SourceGuide AI).
 
 **AI Context:** 
@@ -189,4 +189,4 @@ NEXT_PUBLIC_SOURCEGUIDE_WEBHOOK="https://.../webhook/sourceguide"
 ---
 
 
-*(End of Technical Specifications for HSE AI)*
+*(End of Technical Specifications for HSE Virtual Support Agent)*

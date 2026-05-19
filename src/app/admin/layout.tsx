@@ -6,7 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import { isAdmin } from '@/lib/admin';
 
 export const metadata = {
-    title: 'Admin Dashboard | HSE AI',
+    title: 'Admin Dashboard | HSE Virtual Support Agent',
 };
 
 export default async function AdminLayout({

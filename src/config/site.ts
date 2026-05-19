@@ -46,11 +46,11 @@ export const siteConfig = {
 
     /* ── Text Strings ── */
     text: {
-        appName: 'HSE AI',
+        appName: 'HSE Virtual Support Agent',
         appDescription: 'Intelligent HSE Assistant',
 
         // Sidebar
-        sidebarTitle: 'HSE AI',
+        sidebarTitle: 'HSE Virtual Support Agent',
         newChatButton: 'New Chat',
         signOutButton: 'Sign Out',
 
@@ -61,7 +61,7 @@ export const siteConfig = {
         defaultJobTitle: 'NESR Employee',
         inputPlaceholder: (botName: string) => `Message ${botName}...`,
         disclaimer: (botDisclaimer: string) =>
-            `HSE AI Internal Tool • ${botDisclaimer}`,
+            `HSE Virtual Support Agent • ${botDisclaimer}`,
         welcomeGreeting: (botName: string) => `Hello, I am ${botName}.`,
         errorMessage:
             'Detailed error: Unable to connect to the chatbot. Please try again later.',
@@ -70,7 +70,7 @@ export const siteConfig = {
 
         // Login page
         login: {
-            title: 'Welcome to HSE AI',
+            title: 'Welcome to HSE Virtual Support Agent',
             subtitle: 'Intelligent HSE Assistant',
             ssoButton: 'Continue with SSO',
             divider: 'or',
@@ -79,7 +79,7 @@ export const siteConfig = {
             loadingText: 'Signing in…',
             errorText: 'Incorrect password. Please try again.',
             footer: 'NESR Internal Tool • Authorized Personnel Only',
-            pageTitle: 'Sign In — HSE AI',
+            pageTitle: 'Sign In — HSE Virtual Support Agent',
         },
     },
 
@@ -93,7 +93,7 @@ export const siteConfig = {
     /* ── Bot ── */
     bot: {
         id: 'hse',
-        name: 'HSE AI',
+        name: 'HSE Virtual Support Agent',
         icon: ShieldCheck,
         description: 'Health, Safety & Environment Expert',
         tagline: 'How can I help you with HSE policies and safety today?',
