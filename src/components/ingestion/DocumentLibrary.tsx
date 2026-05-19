@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Search, Download, Eye, RefreshCw } from 'lucide-react';
+import { COUNTRIES } from '@/config/countries';
 
 interface Document {
   id: string;
@@ -13,20 +14,11 @@ interface Document {
   uploaded_at: string;
 }
 
-const COUNTRIES = [
-  { code: 'global',  label: '🌍 Global'  },
-  { code: 'algeria', label: '🇩🇿 Algeria' },
-  { code: 'oman',    label: '🇴🇲 Oman'    },
-  { code: 'ksa',     label: '🇸🇦 KSA'     },
-  { code: 'egypt',   label: '🇪🇬 Egypt'   },
-  { code: 'iraq',    label: '🇮🇶 Iraq'    },
-  { code: 'kuwait',  label: '🇰🇼 Kuwait'  },
-];
-
 const FILE_TYPES = ['PDF', 'DOCX', 'XLSX', 'TXT'];
 
 function getCountryLabel(code: string): string {
-  return COUNTRIES.find((c) => c.code === code)?.label ?? code;
+  const c = COUNTRIES.find(c => c.code === code);
+  return c ? `${c.flag} ${c.label}` : code;
 }
 
 function formatDate(iso: string): string {
@@ -92,7 +84,7 @@ function SkeletonRow() {
   );
 }
 
-export default function DocumentLibrary() {
+export default function DocumentLibrary({ refreshTrigger }: { refreshTrigger?: number } = {}) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
@@ -116,7 +108,7 @@ export default function DocumentLibrary() {
     }
   };
 
-  useEffect(() => { fetchDocuments(); }, []);
+  useEffect(() => { fetchDocuments(); }, [refreshTrigger]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -172,8 +164,8 @@ export default function DocumentLibrary() {
           className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-[#307c4c] focus:border-[#307c4c] block p-2 outline-none min-w-[140px]"
         >
           <option value="">All Countries</option>
-          {COUNTRIES.map(({ code, label }) => (
-            <option key={code} value={code}>{label}</option>
+          {COUNTRIES.map(({ code, flag, label }) => (
+            <option key={code} value={code}>{flag} {label}</option>
           ))}
         </select>
 

@@ -2,18 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Upload, X, Check, Loader2 } from 'lucide-react';
-
-// ── Constants ────────────────────────────────────────────────────────────────
-
-const COUNTRIES = [
-  { code: 'global',  label: '🌍 Global' },
-  { code: 'algeria', label: '🇩🇿 Algeria' },
-  { code: 'oman',    label: '🇴🇲 Oman' },
-  { code: 'ksa',     label: '🇸🇦 KSA' },
-  { code: 'egypt',   label: '🇪🇬 Egypt' },
-  { code: 'iraq',    label: '🇮🇶 Iraq' },
-  { code: 'kuwait',  label: '🇰🇼 Kuwait' },
-];
+import { COUNTRIES } from '@/config/countries';
 
 const MAX_SIZE      = 16 * 1024 * 1024; // 16 MB
 const ACCEPTED_EXTS = ['.pdf', '.docx', '.txt', '.xlsx', '.xls'];
@@ -64,7 +53,7 @@ function cleanFileName(name: string): string {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export default function UploadForm() {
+export default function UploadForm({ onUploadComplete }: { onUploadComplete?: () => void } = {}) {
   const [fileItems, setFileItems]       = useState<FileItem[]>([]);
   const [country, setCountry]           = useState('');
   const [isDragging, setIsDragging]     = useState(false);
@@ -214,6 +203,7 @@ export default function UploadForm() {
 
     setSummary({ success: successCount, failed: failedItems.length, failedItems });
     setPhase('done');
+    if (successCount > 0) onUploadComplete?.();
   };
 
   // ── Derived state ──────────────────────────────────────────────────────────
@@ -293,8 +283,8 @@ export default function UploadForm() {
             className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-[#307c4c] focus:border-[#307c4c] block w-full p-2.5 outline-none transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="">Select a country / region</option>
-            {COUNTRIES.map(({ code, label }) => (
-              <option key={code} value={code}>{label}</option>
+            {COUNTRIES.map(({ code, flag, label }) => (
+              <option key={code} value={code}>{flag} {label}</option>
             ))}
           </select>
           {totalFiles > 1 && (
