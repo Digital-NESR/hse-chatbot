@@ -1,0 +1,21 @@
+import type { Metadata } from 'next';
+import UploadForm from '@/components/ingestion/UploadForm';
+import DocumentLibrary from '@/components/ingestion/DocumentLibrary';
+
+export const metadata: Metadata = {
+    title: 'Data Ingestion | HSE Virtual Support Agent',
+};
+
+export default function AdminIngestionPage() {
+    return (
+        <div className="max-w-[1400px] mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 xl:gap-8 items-start">
+                {/* Left — Upload Form */}
+                <UploadForm />
+
+                {/* Right — Document Library */}
+                <DocumentLibrary />
+            </div>
+        </div>
+    );
+}
