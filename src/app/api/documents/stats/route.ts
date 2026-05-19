@@ -24,6 +24,7 @@ export async function GET() {
             COUNT(CASE WHEN country = 'bahrain'   THEN 1 END)              AS bahrain,
             COUNT(CASE WHEN country = 'libya'     THEN 1 END)              AS libya,
             COUNT(CASE WHEN country = 'nigeria'   THEN 1 END)              AS nigeria,
+            COUNT(CASE WHEN country = 'indonesia' THEN 1 END)              AS indonesia,
             COUNT(CASE WHEN uploaded_at > NOW() - INTERVAL '7 days' THEN 1 END) AS recent,
             COALESCE(SUM(file_size) / 1048576.0, 0)                        AS total_size_mb
         FROM documents;
@@ -56,7 +57,8 @@ export async function GET() {
                 qatar:    num(row.qatar),
                 bahrain:  num(row.bahrain),
                 libya:    num(row.libya),
-                nigeria:  num(row.nigeria),
+                nigeria:   num(row.nigeria),
+                indonesia: num(row.indonesia),
             },
             recentUploads: num(row.recent),
             totalSizeMB:   parseFloat(parseFloat(row.total_size_mb).toFixed(1)),

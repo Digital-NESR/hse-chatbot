@@ -11,7 +11,8 @@ export const COUNTRIES = [
   { code: 'qatar',    label: 'Qatar',     flag: '🇶🇦', namespace: 'qatar'    },
   { code: 'bahrain',  label: 'Bahrain',   flag: '🇧🇭', namespace: 'bahrain'  },
   { code: 'libya',    label: 'Libya',     flag: '🇱🇾', namespace: 'libya'    },
-  { code: 'nigeria',  label: 'Nigeria',   flag: '🇳🇬', namespace: 'nigeria'  },
+  { code: 'nigeria',   label: 'Nigeria',   flag: '🇳🇬', namespace: 'nigeria'   },
+  { code: 'indonesia', label: 'Indonesia', flag: '🇮🇩', namespace: 'indonesia' },
 ] as const;
 
 export type CountryCode = (typeof COUNTRIES)[number]['code'];
