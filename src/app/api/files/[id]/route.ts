@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 
-// TODO: Update the n8n "Build source_link" node to use this route's URL pattern:
-//   https://hse-chatbot-one.vercel.app/api/files/{id}
+// n8n "Build source_link" node should use this route's URL pattern:
+//   https://hsechatbot.nesr.com/api/files/{id}
 // so that Pinecone metadata and the documents table both point here.
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 
-const PRODUCTION_URL = 'https://hse-chatbot-one.vercel.app';
+const PRODUCTION_URL = 'https://hsechatbot.nesr.com';
 
 export async function POST(req: NextRequest) {
   try {
