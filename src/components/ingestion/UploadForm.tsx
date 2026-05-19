@@ -1,219 +1,287 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { Upload, X } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Upload, X, Check, Loader2 } from 'lucide-react';
+
+// ── Constants ────────────────────────────────────────────────────────────────
 
 const COUNTRIES = [
-  { code: 'global', label: '🌍 Global' },
+  { code: 'global',  label: '🌍 Global' },
   { code: 'algeria', label: '🇩🇿 Algeria' },
-  { code: 'oman', label: '🇴🇲 Oman' },
-  { code: 'ksa', label: '🇸🇦 KSA' },
-  { code: 'egypt', label: '🇪🇬 Egypt' },
-  { code: 'iraq', label: '🇮🇶 Iraq' },
-  { code: 'kuwait', label: '🇰🇼 Kuwait' },
+  { code: 'oman',    label: '🇴🇲 Oman' },
+  { code: 'ksa',     label: '🇸🇦 KSA' },
+  { code: 'egypt',   label: '🇪🇬 Egypt' },
+  { code: 'iraq',    label: '🇮🇶 Iraq' },
+  { code: 'kuwait',  label: '🇰🇼 Kuwait' },
 ];
 
-const MAX_SIZE = 16 * 1024 * 1024; // 16 MB
-const ACCEPTED_TYPES = ['.pdf', '.docx', '.txt', '.xlsx', '.xls'];
+const MAX_SIZE      = 16 * 1024 * 1024; // 16 MB
+const ACCEPTED_EXTS = ['.pdf', '.docx', '.txt', '.xlsx', '.xls'];
+const PROD_URL      = 'https://hsechatbot.nesr.com';
 
-function getFileExtension(name: string): string {
-  return name.split('.').pop()?.toLowerCase() || '';
+// ── Types ────────────────────────────────────────────────────────────────────
+
+interface FileItem {
+  id: string;
+  file: File;
+  sourceName: string;
+  status: 'pending' | 'uploading' | 'success' | 'failed';
+  error?: string;
+}
+
+interface UploadSummary {
+  success: number;
+  failed: number;
+  failedItems: { name: string; error: string }[];
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function getExt(name: string): string {
+  return name.split('.').pop()?.toLowerCase() ?? '';
 }
 
 function getFileIcon(ext: string): string {
-  if (ext === 'pdf') return '📄';
-  if (ext === 'docx') return '📝';
-  if (ext === 'xlsx' || ext === 'xls') return '📊';
+  if (ext === 'pdf')                     return '📄';
+  if (ext === 'docx')                    return '📝';
+  if (ext === 'xlsx' || ext === 'xls')   return '📊';
   return '📃';
 }
 
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+function formatSize(bytes: number): string {
+  if (bytes < 1024)           return `${bytes} B`;
+  if (bytes < 1024 * 1024)    return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-type Status = 'idle' | 'uploading' | 'success' | 'error' | 'warn';
+/** "HSE_Incident-Report.pdf" → "HSE Incident Report" */
+function cleanFileName(name: string): string {
+  return name
+    .replace(/\.[^.]+$/, '')       // strip extension
+    .replace(/[_\-.]+/g, ' ')      // underscores/hyphens/dots → spaces
+    .trim();
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
 
 export default function UploadForm() {
-  const [sourceName, setSourceName] = useState('');
-  const [country, setCountry] = useState('');
-  const [file, setFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState('');
-  const [isDragging, setIsDragging] = useState(false);
-  const [status, setStatus] = useState<Status>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [fileItems, setFileItems]       = useState<FileItem[]>([]);
+  const [country, setCountry]           = useState('');
+  const [isDragging, setIsDragging]     = useState(false);
+  const [phase, setPhase]               = useState<'idle' | 'uploading' | 'done'>('idle');
+  const [progress, setProgress]         = useState({ current: 0, total: 0 });
+  const [summary, setSummary]           = useState<UploadSummary | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const validateAndSetFile = (f: File) => {
-    setFileError('');
-    const ext = '.' + getFileExtension(f.name);
-    if (!ACCEPTED_TYPES.includes(ext)) {
-      setFileError(`Unsupported file type. Accepted: ${ACCEPTED_TYPES.join(', ')}`);
-      return;
+  // Auto-dismiss the all-success banner after 3 s
+  useEffect(() => {
+    if (summary && summary.failed === 0) {
+      const t = setTimeout(() => setSummary(null), 3000);
+      return () => clearTimeout(t);
     }
-    if (f.size > MAX_SIZE) {
-      setFileError('File exceeds the 16 MB limit.');
-      return;
-    }
-    setFile(f);
+  }, [summary]);
+
+  // ── File management ────────────────────────────────────────────────────────
+
+  const appendFiles = (raw: File[]) => {
+    const items: FileItem[] = raw.map(file => ({
+      id: crypto.randomUUID(),
+      file,
+      sourceName: cleanFileName(file.name),
+      status: 'pending',
+    }));
+    setFileItems(prev => [...prev, ...items]);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const dropped = e.dataTransfer.files[0];
-    if (dropped) validateAndSetFile(dropped);
+    if (phase === 'uploading') return;
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length) appendFiles(files);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length) appendFiles(files);
+    e.target.value = ''; // reset so the same file can be re-selected
   };
 
-  const handleDragLeave = () => setIsDragging(false);
-
-  const fileExt = file ? getFileExtension(file.name) : '';
-  const isExcel = fileExt === 'xlsx' || fileExt === 'xls';
-  const isFormValid = !!sourceName.trim() && !!country && !!file && !fileError;
-
-  const resetForm = () => {
-    setSourceName('');
-    setCountry('');
-    setFile(null);
-    setFileError('');
-    setStatus('idle');
-    setErrorMessage('');
+  const removeFile = (id: string) => {
+    setFileItems(prev => prev.filter(f => f.id !== id));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isFormValid || status === 'uploading') return;
+  const updateSourceName = (id: string, value: string) => {
+    setFileItems(prev => prev.map(f => f.id === id ? { ...f, sourceName: value } : f));
+  };
 
-    setStatus('uploading');
-    setErrorMessage('');
+  const resetForm = (keepCountry = false) => {
+    setFileItems([]);
+    setSummary(null);
+    setPhase('idle');
+    setProgress({ current: 0, total: 0 });
+    if (!keepCountry) setCountry('');
+  };
 
-    // ── Step 1: Store file in PostgreSQL ─────────────────────────────────────
-    let documentId = '';
-    let sourceLink = '';
-    try {
-      const step1 = new FormData();
-      step1.append('file', file!);
-      step1.append('source_name', sourceName.trim());
-      step1.append('country', country);
+  // ── Upload logic ───────────────────────────────────────────────────────────
 
-      const res = await fetch('/api/upload', { method: 'POST', body: step1 });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => `Server error ${res.status}`);
-        throw new Error(errText || `Server returned ${res.status}`);
+  const handleUploadAll = async () => {
+    if (phase === 'uploading' || !country || fileItems.length === 0) return;
+
+    setPhase('uploading');
+    setSummary(null);
+
+    // 1. Validate every file up-front; mark invalid ones failed immediately
+    const validated = fileItems.map((item): FileItem => {
+      const ext = '.' + getExt(item.file.name);
+      if (!ACCEPTED_EXTS.includes(ext)) {
+        return { ...item, status: 'failed', error: 'File type not supported' };
       }
-      const data = await res.json();
-      documentId = data.id;
-      sourceLink = data.source_link;
-    } catch (err: any) {
-      setStatus('error');
-      setErrorMessage(err.message || 'Failed to store file. Please try again.');
-      return;
-    }
-
-    // ── Step 2: Ingest into Pinecone via n8n ─────────────────────────────────
-    const webhookUrl = process.env.NEXT_PUBLIC_INGESTION_WEBHOOK_URL;
-    if (!webhookUrl) {
-      // File is stored — warn rather than hard-fail.
-      setStatus('warn');
-      setErrorMessage('File stored but embedding failed. Please retry ingestion.');
-      return;
-    }
-
-    try {
-      const step2 = new FormData();
-      step2.append('file', file!);
-      step2.append('source_name', sourceName.trim());
-      step2.append('country', country);
-      step2.append('source_link', sourceLink);
-
-      const res = await fetch(webhookUrl, { method: 'POST', body: step2 });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => `Server error ${res.status}`);
-        throw new Error(errText || `Server returned ${res.status}`);
+      if (item.file.size > MAX_SIZE) {
+        return { ...item, status: 'failed', error: 'File exceeds 16 MB limit' };
       }
-    } catch {
-      setStatus('warn');
-      setErrorMessage('File stored but embedding failed. Please retry ingestion.');
-      return;
+      return item;
+    });
+
+    setFileItems(validated);
+
+    const toProcess = validated.filter(f => f.status === 'pending');
+    setProgress({ current: 0, total: toProcess.length });
+
+    let successCount = 0;
+    const failedItems: { name: string; error: string }[] = [];
+
+    // Carry forward pre-validation failures
+    validated
+      .filter(f => f.status === 'failed')
+      .forEach(f => failedItems.push({ name: f.file.name, error: f.error! }));
+
+    // 2. Process valid files sequentially
+    for (let i = 0; i < toProcess.length; i++) {
+      const item = toProcess[i];
+      setProgress({ current: i + 1, total: toProcess.length });
+
+      // Mark as uploading
+      setFileItems(prev =>
+        prev.map(f => f.id === item.id ? { ...f, status: 'uploading' } : f),
+      );
+
+      try {
+        // Step A — store file in PostgreSQL
+        const fd1 = new FormData();
+        fd1.append('file', item.file);
+        fd1.append('source_name', item.sourceName.trim() || item.file.name);
+        fd1.append('country', country);
+
+        const r1 = await fetch('/api/upload', { method: 'POST', body: fd1 });
+        if (!r1.ok) {
+          const msg = await r1.text().catch(() => `Server error ${r1.status}`);
+          throw new Error(msg || `Server returned ${r1.status}`);
+        }
+        const { id } = await r1.json();
+        const source_link = `${PROD_URL}/api/files/${id}`;
+
+        // Step B — ingest into Pinecone via n8n webhook
+        const webhookUrl = process.env.NEXT_PUBLIC_INGESTION_WEBHOOK_URL;
+        if (webhookUrl) {
+          const fd2 = new FormData();
+          fd2.append('file', item.file);
+          fd2.append('source_name', item.sourceName.trim() || item.file.name);
+          fd2.append('country', country);
+          fd2.append('source_link', source_link);
+
+          const r2 = await fetch(webhookUrl, { method: 'POST', body: fd2 });
+          if (!r2.ok) {
+            const msg = await r2.text().catch(() => `Webhook error ${r2.status}`);
+            throw new Error(msg || `Webhook returned ${r2.status}`);
+          }
+        }
+
+        setFileItems(prev =>
+          prev.map(f => f.id === item.id ? { ...f, status: 'success' } : f),
+        );
+        successCount++;
+      } catch (err: any) {
+        const errorMsg: string = err?.message ?? 'Upload failed';
+        setFileItems(prev =>
+          prev.map(f => f.id === item.id ? { ...f, status: 'failed', error: errorMsg } : f),
+        );
+        failedItems.push({ name: item.file.name, error: errorMsg });
+      }
+      // Continue to next file regardless of outcome
     }
 
-    // ── Both steps succeeded ──────────────────────────────────────────────────
-    setStatus('success');
-    setTimeout(resetForm, 2000);
+    setSummary({ success: successCount, failed: failedItems.length, failedItems });
+    setPhase('done');
   };
+
+  // ── Derived state ──────────────────────────────────────────────────────────
+
+  const isUploading = phase === 'uploading';
+  const isDone      = phase === 'done';
+  const showStatus  = phase !== 'idle';
+  const canUpload   = fileItems.length > 0 && !!country && !isUploading;
+  const totalFiles  = fileItems.length;
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+
       {/* Card Header */}
       <div className="mb-6">
-        <h2 className="text-lg font-semibold text-slate-800">Upload Document</h2>
+        <h2 className="text-lg font-semibold text-slate-800">Upload Documents</h2>
         <p className="text-sm text-gray-500 mt-0.5">
-          Ingest a new document into the HSE knowledge base
+          Ingest one or more documents into the HSE knowledge base
         </p>
       </div>
 
-      {/* Success Banner */}
-      {status === 'success' && (
-        <div className="mb-5 flex items-center gap-2.5 px-4 py-3 bg-[#307c4c]/10 border border-[#307c4c]/20 rounded-xl text-[#307c4c] text-sm font-medium animate-in fade-in duration-300">
-          <span>✓</span>
-          Document successfully ingested
+      {/* ── Summary Banner ── */}
+      {summary && isDone && (
+        <div
+          className={`mb-5 px-4 py-3 rounded-xl animate-in fade-in duration-300 ${
+            summary.failed === 0
+              ? 'bg-[#307c4c]/10 border border-[#307c4c]/20'
+              : 'bg-amber-50 border border-amber-200'
+          }`}
+        >
+          {summary.failed === 0 ? (
+            <p className="text-sm font-medium text-[#307c4c]">
+              ✅ All {summary.success}{' '}
+              {summary.success === 1 ? 'document' : 'documents'} successfully ingested
+            </p>
+          ) : (
+            <>
+              <p className="text-sm font-medium text-amber-700 mb-1.5">
+                ⚠️ {summary.success} of {summary.success + summary.failed}{' '}
+                {summary.success + summary.failed === 1 ? 'document' : 'documents'} ingested
+                successfully. {summary.failed} failed:
+              </p>
+              <ul className="space-y-0.5">
+                {summary.failedItems.map((f, i) => (
+                  <li key={i} className="text-xs text-amber-700">
+                    <span className="font-medium">{f.name}</span>
+                    {f.error && (
+                      <span className="text-amber-600"> — {f.error}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => setSummary(null)}
+                className="mt-2.5 text-xs font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2 transition-colors duration-150"
+              >
+                Dismiss
+              </button>
+            </>
+          )}
         </div>
       )}
 
-      {/* Warning Banner — file stored but embedding failed */}
-      {status === 'warn' && (
-        <div className="mb-5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl animate-in fade-in duration-300">
-          <p className="text-sm font-medium text-amber-700 mb-0.5">Partial success</p>
-          <p className="text-xs text-amber-600">{errorMessage}</p>
-          <button
-            onClick={resetForm}
-            className="mt-2 text-xs font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
+      <div className="space-y-5">
 
-      {/* Error Banner */}
-      {status === 'error' && (
-        <div className="mb-5 px-4 py-3 bg-red-50 border border-red-200 rounded-xl animate-in fade-in duration-300">
-          <p className="text-sm font-medium text-red-600 mb-0.5">Upload failed</p>
-          <p className="text-xs text-red-500">{errorMessage}</p>
-          <button
-            onClick={resetForm}
-            className="mt-2 text-xs font-semibold text-red-600 hover:text-red-800 underline underline-offset-2"
-          >
-            Dismiss & retry
-          </button>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Source Name */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Source Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={sourceName}
-            onChange={(e) => setSourceName(e.target.value)}
-            placeholder="e.g. HSE Incident Report Form - Algeria"
-            className="w-full px-4 py-2.5 text-sm text-gray-700 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#307c4c]/30 focus:border-[#307c4c] outline-none transition-all duration-150 placeholder:text-gray-400"
-          />
-          <p className="mt-1.5 text-xs text-gray-400">
-            This name will appear as the citation in chat responses
-          </p>
-        </div>
-
-        {/* Country */}
+        {/* ── Country / Region ── */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">
             Country / Region <span className="text-red-500">*</span>
@@ -221,130 +289,208 @@ export default function UploadForm() {
           <select
             value={country}
             onChange={(e) => setCountry(e.target.value)}
-            className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-[#307c4c] focus:border-[#307c4c] block w-full p-2.5 outline-none transition-all duration-150"
+            disabled={isUploading}
+            className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-[#307c4c] focus:border-[#307c4c] block w-full p-2.5 outline-none transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="">Select a country / region</option>
             {COUNTRIES.map(({ code, label }) => (
-              <option key={code} value={code}>
-                {label}
-              </option>
+              <option key={code} value={code}>{label}</option>
             ))}
           </select>
-        </div>
-
-        {/* File Upload */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            File <span className="text-red-500">*</span>
-          </label>
-
-          {!file ? (
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              className={`relative flex flex-col items-center justify-center gap-3 p-8 rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 ${
-                isDragging
-                  ? 'border-[#307c4c] bg-[#307c4c]/5 scale-[1.01]'
-                  : 'border-slate-200 bg-slate-50 hover:border-[#307c4c]/50 hover:bg-[#307c4c]/5'
-              }`}
-            >
-              <div className="w-10 h-10 rounded-full bg-[#307c4c]/10 flex items-center justify-center shrink-0">
-                <Upload size={18} className="text-[#307c4c]" />
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-medium text-gray-700">
-                  {isDragging ? 'Drop your file here' : 'Drag & drop or click to upload'}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">PDF, DOCX, TXT, XLSX, XLS • Max 16 MB</p>
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={ACCEPTED_TYPES.join(',')}
-                onChange={(e) => e.target.files?.[0] && validateAndSetFile(e.target.files[0])}
-                className="hidden"
-              />
-            </div>
-          ) : (
-            <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="text-2xl shrink-0">{getFileIcon(fileExt)}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-700 truncate">{file.name}</p>
-                <p className="text-xs text-gray-400">{formatFileSize(file.size)}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setFile(null);
-                  setFileError('');
-                }}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all duration-150 shrink-0"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
-
-          {fileError && (
-            <p className="mt-1.5 text-xs text-red-500">{fileError}</p>
-          )}
-
-          {/* Excel notice */}
-          {isExcel && (
-            <div className="mt-2 flex gap-2 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-lg">
-              <span className="text-sm shrink-0">⚠️</span>
-              <p className="text-xs text-amber-700 leading-relaxed">
-                Excel files will be converted for AI embedding. The original file will be stored and
-                available for download.
-              </p>
-            </div>
+          {totalFiles > 1 && (
+            <p className="mt-1 text-xs text-gray-400">Applies to all files in this batch</p>
           )}
         </div>
 
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={!isFormValid || status === 'uploading'}
-          className={`w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
-            isFormValid && status !== 'uploading'
-              ? 'bg-[#307c4c] text-white hover:bg-[#25603a] shadow-sm hover:shadow-md active:scale-[0.98]'
-              : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+        {/* ── Drop Zone ── */}
+        <div
+          onClick={() => !isUploading && fileInputRef.current?.click()}
+          onDrop={handleDrop}
+          onDragOver={(e) => { e.preventDefault(); if (!isUploading) setIsDragging(true); }}
+          onDragLeave={() => setIsDragging(false)}
+          className={`relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed transition-all duration-200 ${
+            totalFiles > 0 ? 'py-4 px-6' : 'py-8 px-6'
+          } ${
+            isUploading
+              ? 'border-slate-200 bg-slate-50 cursor-not-allowed opacity-50'
+              : isDragging
+                ? 'border-[#307c4c] bg-[#307c4c]/5 scale-[1.01] cursor-copy'
+                : 'border-slate-200 bg-slate-50 hover:border-[#307c4c]/50 hover:bg-[#307c4c]/5 cursor-pointer'
           }`}
         >
-          {status === 'uploading' ? (
-            <>
-              <svg
-                className="animate-spin h-4 w-4 shrink-0"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-              Storing & ingesting...
-            </>
-          ) : (
-            <>
-              <Upload size={16} />
-              Upload & Ingest
-            </>
-          )}
-        </button>
-      </form>
+          <div className="w-9 h-9 rounded-full bg-[#307c4c]/10 flex items-center justify-center shrink-0">
+            <Upload size={16} className="text-[#307c4c]" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium text-gray-700">
+              {isDragging
+                ? 'Drop your files here'
+                : totalFiles > 0
+                  ? 'Drop more files or click to add'
+                  : 'Drag & drop or click to upload'}
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              PDF, DOCX, TXT, XLSX, XLS • Max 16 MB each • Multiple files supported
+            </p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={ACCEPTED_EXTS.join(',')}
+            onChange={handleFileInput}
+            className="hidden"
+          />
+        </div>
+
+        {/* ── File List ── */}
+        {fileItems.length > 0 && (
+          <div>
+            {/* List header */}
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                {totalFiles} {totalFiles === 1 ? 'File' : 'Files'} Selected
+              </p>
+              {!isUploading && !isDone && (
+                <button
+                  onClick={() => resetForm(true)}
+                  className="text-xs text-gray-400 hover:text-red-500 transition-colors duration-150"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+
+            {/* Scrollable file rows */}
+            <div className="space-y-2 max-h-80 overflow-y-auto pr-0.5">
+              {fileItems.map((item) => {
+                const ext     = getExt(item.file.name);
+                const isExcel = ext === 'xlsx' || ext === 'xls';
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`flex items-start gap-3 p-3 rounded-xl border transition-all duration-200 ${
+                      item.status === 'success'
+                        ? 'bg-[#307c4c]/5 border-[#307c4c]/20'
+                        : item.status === 'failed'
+                          ? 'bg-red-50 border-red-200'
+                          : item.status === 'uploading'
+                            ? 'bg-[#307c4c]/5 border-[#307c4c]/20'
+                            : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    {/* File type icon */}
+                    <span className="text-xl shrink-0 mt-0.5 leading-none select-none">
+                      {getFileIcon(ext)}
+                    </span>
+
+                    {/* Name + source name input + notices */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <p className="text-sm font-medium text-gray-700 truncate">
+                          {item.file.name}
+                        </p>
+                        <span className="text-xs text-gray-400 shrink-0">
+                          {formatSize(item.file.size)}
+                        </span>
+                      </div>
+
+                      <input
+                        type="text"
+                        value={item.sourceName}
+                        onChange={(e) => updateSourceName(item.id, e.target.value)}
+                        placeholder="Source name for citations..."
+                        disabled={isUploading || item.status === 'success'}
+                        className="w-full px-3 py-1.5 text-xs text-gray-700 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-[#307c4c]/30 focus:border-[#307c4c] outline-none transition-all duration-150 placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                      />
+
+                      {isExcel && (
+                        <p className="mt-1.5 text-[11px] text-amber-600 leading-snug">
+                          ⚠️ Will be converted for AI embedding. Original file preserved.
+                        </p>
+                      )}
+
+                      {item.status === 'failed' && item.error && (
+                        <p className="mt-1.5 text-xs text-red-500 leading-snug">
+                          {item.error}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Status indicator — only visible once upload phase begins */}
+                    {showStatus && (
+                      <div className="shrink-0 flex items-center justify-center w-5 mt-1">
+                        {item.status === 'pending' && (
+                          <div className="w-2 h-2 rounded-full bg-gray-300" />
+                        )}
+                        {item.status === 'uploading' && (
+                          <Loader2 size={15} className="animate-spin text-[#307c4c]" />
+                        )}
+                        {item.status === 'success' && (
+                          <Check size={15} className="text-[#307c4c]" />
+                        )}
+                        {item.status === 'failed' && (
+                          <X size={15} className="text-red-500" />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Remove button */}
+                    <button
+                      onClick={() => removeFile(item.id)}
+                      disabled={isUploading}
+                      aria-label={`Remove ${item.file.name}`}
+                      className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Primary action / progress button ── */}
+        {!isDone && (
+          <button
+            onClick={handleUploadAll}
+            disabled={!canUpload}
+            className={`w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+              canUpload
+                ? 'bg-[#307c4c] text-white hover:bg-[#25603a] shadow-sm hover:shadow-md active:scale-[0.98]'
+                : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+            }`}
+          >
+            {isUploading ? (
+              <>
+                <Loader2 size={16} className="animate-spin shrink-0" />
+                Uploading {progress.current} of {progress.total}…
+              </>
+            ) : (
+              <>
+                <Upload size={16} />
+                {totalFiles > 0
+                  ? `Upload & Ingest All (${totalFiles} ${totalFiles === 1 ? 'file' : 'files'})`
+                  : 'Upload & Ingest All'}
+              </>
+            )}
+          </button>
+        )}
+
+        {/* ── Upload More button — shown after completion ── */}
+        {isDone && (
+          <button
+            onClick={() => resetForm(true)}
+            className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"
+          >
+            <Upload size={16} />
+            Upload More Files
+          </button>
+        )}
+
+      </div>
     </div>
   );
 }
