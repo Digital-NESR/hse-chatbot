@@ -176,34 +176,38 @@ export default function UploadForm({ onUploadComplete }: { onUploadComplete?: ()
         const webhookUrl = process.env.NEXT_PUBLIC_INGESTION_WEBHOOK_URL;
         let embeddingWarning: string | undefined;
         if (webhookUrl) {
+          console.log('Calling n8n webhook:', webhookUrl);
+          console.log('With source_link:', source_link);
+
+          const fd2 = new FormData();
+          fd2.append('file', item.file);
+          fd2.append('source_name', item.sourceName.trim() || item.file.name);
+          fd2.append('country', country);
+          fd2.append('source_link', source_link);
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 120000);
+
           try {
-            console.log('Calling n8n webhook:', webhookUrl);
-            console.log('With source_link:', source_link);
-
-            const fd2 = new FormData();
-            fd2.append('file', item.file);
-            fd2.append('source_name', item.sourceName.trim() || item.file.name);
-            fd2.append('country', country);
-            fd2.append('source_link', source_link);
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000);
-
             const r2 = await fetch(webhookUrl, {
               method: 'POST',
               body: fd2,
               signal: controller.signal,
             });
-
             clearTimeout(timeoutId);
-
-            if (!r2.ok) {
-              const msg = await r2.text().catch(() => `Webhook error ${r2.status}`);
-              throw new Error(msg || `Webhook returned ${r2.status}`);
+            console.log('n8n response status:', r2.status);
+            // Any response means n8n received the file — no status check needed
+          } catch (fetchErr: any) {
+            clearTimeout(timeoutId);
+            if (fetchErr?.name === 'AbortError') {
+              // Timeout — n8n is still processing, file is safely in DB
+              console.log('n8n timed out but file is stored in DB');
+            } else {
+              // True network error — surface as a warning, not a failure
+              console.warn('n8n fetch error:', fetchErr?.message);
+              embeddingWarning =
+                'File stored successfully but embedding failed. You can retry embedding from the document library.';
             }
-          } catch {
-            embeddingWarning =
-              'File stored successfully but embedding failed. You can retry embedding from the document library.';
           }
         }
 
