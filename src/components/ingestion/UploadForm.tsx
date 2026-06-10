@@ -16,6 +16,7 @@ interface FileItem {
   sourceName: string;
   status: 'pending' | 'uploading' | 'success' | 'failed';
   error?: string;
+  warning?: string;
 }
 
 interface UploadSummary {
@@ -173,22 +174,43 @@ export default function UploadForm({ onUploadComplete }: { onUploadComplete?: ()
 
         // Step B — ingest into Pinecone via n8n webhook
         const webhookUrl = process.env.NEXT_PUBLIC_INGESTION_WEBHOOK_URL;
+        let embeddingWarning: string | undefined;
         if (webhookUrl) {
-          const fd2 = new FormData();
-          fd2.append('file', item.file);
-          fd2.append('source_name', item.sourceName.trim() || item.file.name);
-          fd2.append('country', country);
-          fd2.append('source_link', source_link);
+          try {
+            console.log('Calling n8n webhook:', webhookUrl);
+            console.log('With source_link:', source_link);
 
-          const r2 = await fetch(webhookUrl, { method: 'POST', body: fd2 });
-          if (!r2.ok) {
-            const msg = await r2.text().catch(() => `Webhook error ${r2.status}`);
-            throw new Error(msg || `Webhook returned ${r2.status}`);
+            const fd2 = new FormData();
+            fd2.append('file', item.file);
+            fd2.append('source_name', item.sourceName.trim() || item.file.name);
+            fd2.append('country', country);
+            fd2.append('source_link', source_link);
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+            const r2 = await fetch(webhookUrl, {
+              method: 'POST',
+              body: fd2,
+              signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!r2.ok) {
+              const msg = await r2.text().catch(() => `Webhook error ${r2.status}`);
+              throw new Error(msg || `Webhook returned ${r2.status}`);
+            }
+          } catch {
+            embeddingWarning =
+              'File stored successfully but embedding failed. You can retry embedding from the document library.';
           }
         }
 
         setFileItems(prev =>
-          prev.map(f => f.id === item.id ? { ...f, status: 'success' } : f),
+          prev.map(f =>
+            f.id === item.id ? { ...f, status: 'success', warning: embeddingWarning } : f,
+          ),
         );
         successCount++;
       } catch (err: any) {
@@ -404,6 +426,12 @@ export default function UploadForm({ onUploadComplete }: { onUploadComplete?: ()
                       {item.status === 'failed' && item.error && (
                         <p className="mt-1.5 text-xs text-red-500 leading-snug">
                           {item.error}
+                        </p>
+                      )}
+
+                      {item.warning && (
+                        <p className="mt-1.5 text-[11px] text-amber-600 leading-snug">
+                          ⚠️ {item.warning}
                         </p>
                       )}
                     </div>
