@@ -85,8 +85,6 @@ export const siteConfig = {
 
     /* ── Suggestions ── */
     suggestions: [
-        'What are the HSE requirements for: ',
-        'What is the safety policy for: ',
         'How do I report an incident for: ',
     ],
 
@@ -95,8 +93,8 @@ export const siteConfig = {
         id: 'hse',
         name: 'HSE Virtual Support Agent',
         icon: ShieldCheck,
-        description: 'Health, Safety & Environment Expert',
-        tagline: 'How can I help you with HSE policies and safety today?',
+        description: 'How can I assist today?',
+        tagline: '',
         disclaimer: 'Always verify safety information with the relevant HSE authority',
         webhookUrl: process.env.NEXT_PUBLIC_HSE_WEBHOOK || '',
     } satisfies BotConfig,
