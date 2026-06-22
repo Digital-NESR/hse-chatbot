@@ -590,7 +590,7 @@ export default function Home() {
                 {text.welcomeGreeting(bot.name)}
               </h2>
               <p className="text-base md:text-lg text-gray-400 font-medium mb-10 text-center w-full max-w-full break-words whitespace-normal leading-relaxed px-2">
-                {bot.description}. <br className="hidden sm:block" />
+                {bot.description} <br className="hidden sm:block" />
                 <span className="text-sm md:text-base opacity-80">{bot.tagline}</span>
               </p>
 

@@ -93,7 +93,7 @@ export const siteConfig = {
         id: 'hse',
         name: 'HSE Virtual Support Agent',
         icon: ShieldCheck,
-        description: 'How can I assist today?',
+        description: 'How can I assist you today?',
         tagline: '',
         disclaimer: 'Always verify safety information with the relevant HSE authority',
         webhookUrl: process.env.NEXT_PUBLIC_HSE_WEBHOOK || '',
